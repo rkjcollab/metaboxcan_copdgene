@@ -1,0 +1,312 @@
+---
+title: "5_prediction_accuracy"
+author: "SDS"
+date: "Last compiled on `r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: kable
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = paste0(Sys.getenv("RKJCOLLAB"), "/Collabs/metaboxcan/reports")) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(
+  root.dir = paste0(Sys.getenv("RKJCOLLAB"), "/Collabs/metaboxcan"))
+
+library(tidyverse)
+library(RSQLite)
+library(data.table)
+library(purrr)
+library(ggpubr)
+```
+
+
+# **METSIM Db Prediction Accuracy in COPDGene**
+
+Prediction accuracy analysis for Haky and Festus using their METSIM metabolite
+prediction models in COPDGene. There are 789 metabolites in common between the
+METSIM prediction models and the COPDGene metabolite data. There are 957
+individuals in COPDGene with both genetic data and metabolite data (from Phase 2
+of COPDGene). Prediction accuracy was also calculated separately by sex, which
+was requested since METSIM is only male (TODO: confirm?). There are 489 males
+and 468 females.
+
+Two-sided Pearson correlation prediction accuracy was calculated in
+4_calc_prediction_accuracy.R, and details for the steps before that are
+available in each script.
+
+In part, Pearson correlation was chosen based on the Predixcan paper by Gamazon
+et al (PMID 6258848). From the methods:
+"To assess performance, we used the square of the Pearson correlation, R2,
+between predicted and observed expression levels."
+
+# **Load Data**
+
+```{r load_data, message = F, warning = F}
+
+# Predicted Gene Expression
+pred <- read.delim(
+  "data/metsim_prediction/filt/COPDGene_metsim_metaboxcan_predict.txt")
+
+# Accuracy
+acc <- read_tsv(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance.txt")
+
+acc_m <- read_tsv(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_males.txt")
+
+acc_f <- read_tsv(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_females.txt")
+
+# Predicted vs. observed
+merge <- read_tsv(
+  file="data/metsim_prediction/filt/pred_v_obs_metsim.txt")
+
+# Metsim db
+db <- dbConnect(
+  RSQLite::SQLite(),
+  "raw/dbs/metsim-invnorm-softimpute.db")
+db_ext <- dbReadTable(db, "extra")
+dbDisconnect(db)
+
+# Pheno
+pheno <- read_tsv(
+  "raw/pheno/COPDGene_P1P2P3_Flat_SM_NS_Sep24.txt")
+# TO NOTE: this throws warnings, but doesn't affect the column I need (gender)
+# 1 = male, 2 = female
+
+```
+
+# **Study Information**
+
+This section only looks at the subset of individuals we're analyzing accuracy
+in, those with COPDGene metabolomics and genetics data. All NHW.
+
+```{r}
+pheno_filt <- pheno %>%
+  dplyr::mutate(IID = paste0(sid, "_", sid)) %>%
+  dplyr::filter(IID %in% pred$IID)
+
+table(pheno_filt$cohort, useNA = "ifany")
+table(pheno_filt$gender, useNA = "ifany")
+table(pheno_filt$race, useNA = "ifany")
+table(pheno_filt$COPD_P1, useNA = "ifany")  # have you ever had COPD, 3 = don't know
+table(pheno_filt$CopdDxByDr_P1, useNA = "ifany")  # diagnosed COPD
+```
+
+
+# **Prediction Accuracy Overview**
+
+**Distribution of Pearson accuracy (R squared, also shown as R2):**
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+ggplot(acc, aes(x = pearson.r2)) +
+  geom_histogram() + 
+  labs(title = "Pearson R2")
+
+ggplot(acc, aes(x = log(pearson.r2))) +
+  geom_histogram() + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+**Distribution of Pearson R2 (not transformed):**
+
+```{r}
+print(paste0("Min: ", min(acc$pearson.r2, na.rm = T)))
+print(paste0("Max: ", max(acc$pearson.r2, na.rm = T)))
+quantile(acc$pearson.r2, na.rm = T)
+```
+
+
+**Distribution of Pearson accuracy stratified by sex:**
+
+Correlation here was calculated separately in males and females.
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+acc_m$sex = "male"
+acc_f$sex = "female"
+acc_sex <- rbind(acc_m, acc_f)
+
+
+ggplot(acc_sex, aes(x = pearson.r2, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Pearson R2")
+
+ggplot(acc_sex, aes(x = log(pearson.r2), fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+
+**How many with Pearson R2 > 0.1?**
+
+```{r}
+sum(acc$pearson.r2 > 0.1)
+```
+
+**How many significantly correlated (Pearson p-value < 0.05)?**
+
+```{r}
+sum(acc$pearson.pval < 0.05)
+```
+
+
+# **Prediction Accuracy Scatter Plots**
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2:**
+
+```{r}
+# identical(db_ext$gene, db_ext$genename)  # TRUE
+db_ext_mod <- db_ext %>%
+  dplyr::mutate(metab = gsub("^C", "", gene))
+acc_merge <- inner_join(
+  acc %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+# sum(is.na(acc_merge$pearson.r2))  # 0
+# acc_merge_mod <- acc_merge %>%
+#   dplyr::mutate(pearson.r2 = ifelse(is.na(pearson.r2), -0.1, pearson.r2))
+
+plot_acc <- ggplot(acc_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+plot_acc
+
+```
+
+*TO NOTE: Not sure why some of their model performance R2 values are negative?*
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2, stratified by sex:**
+
+Correlation here was calculated separately in males and females. Combined plot
+has two points for each metabolite - one showing the correlation calculated in
+males and the other in females. The plots are also shown separated.
+
+```{r}
+acc_sex_merge <- inner_join(
+  acc_sex %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+ggplot(acc_sex_merge, aes(x = pred.perf.R2, y = pearson.r2, color = sex)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+```
+
+
+```{r out.width = '50%', fig.show = 'hold'}
+acc_m_merge <- inner_join(
+  acc_m %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+acc_f_merge <- inner_join(
+  acc_f %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+default_colors <- scales::hue_pal()(2)
+
+ggplot(acc_m_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[2]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Males") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+ggplot(acc_f_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[1]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Females") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+```
+
+
+**List metabolites with the highest prediction accuracy:**
+
+```{r}
+acc_merge_show <- acc_merge %>%
+  dplyr::select(
+    metab, pearson.cor, pearson.r2, t.stat, pearson.pval, pred.perf.R2,
+    n.snps.in.model) %>%
+  dplyr::arrange(desc(pearson.r2))
+
+# switch p-value column to character for display in report
+head(
+  acc_merge_show %>% dplyr::mutate(pearson.pval = as.character(pearson.pval)), 10)
+
+acc_merge_show_top <- acc_merge_show %>%
+  slice(1:4)
+
+```
+
+**Predicted vs. observed plots for top four highest prediction accuracy:**
+
+```{r, warning = F}
+
+cand_gene_plot <- function(data, gene) {
+
+  data_ex <- data %>%
+    dplyr::select(ID, pop, all_of(gene)) %>%
+    pivot_wider(names_from = c("pop"), values_from = c(gene))
+  
+  ggplot(data_ex, aes(x = pred.expr, y = obs.expr)) +
+    geom_point() +
+    stat_cor(method = "pearson", alternative = "two.sided", cor.coef.name = "R",
+             p.digits = 5,
+             aes(label = paste(after_stat(rr.label), after_stat(p.label), sep = "~`,`~"))) +
+    geom_smooth(method = "lm", se = F, color = "black") +  # linear equivalent to pearson
+    theme_minimal() +
+    labs(
+      x = "Predicted Expression",
+      y = "Observed Expression",
+      color = "",
+      title = paste0("Metab CHEM_ID: ", gene)
+    ) +
+    theme(legend.position = "bottom")
+}
+
+invisible(lapply(acc_merge_show_top$metab, function(m) {
+  print(cand_gene_plot(merge, m)) }))
+
+```
+
+*TO NOTE: actual p-values are shown in table above, not sure why plot rounding*
+*is cuttting all off at 2.2E-16.*
+
+# **Session Info**
+
+```{r session_info}
+sessionInfo()
+```
+

@@ -1,0 +1,194 @@
+---
+title: "run_tm_imp.Rmd"
+author: "SDS"
+date: "Last compiled on `r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: kable
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = paste0(Sys.getenv("RKJCOLLAB"), "/Maternal_Protection/reports")) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(
+  root.dir = paste0(Sys.getenv("RKJCOLLAB"), "/Collabs/metaboxcan"))
+
+library(tidyverse)
+library(conflicted)
+
+```
+
+# **Data Overview**
+
+Running TOPMed imputation on NWD COPDGene individuals with the following PLINK
+files from the HumanOmniExpress array as input:
+
++ metaboxcan/raw/genetics/CG10k_NHW_hg19_Oct2017/CG10k_NHW_hg19_Oct2017.bim
+
+Build is hg19, so will need to do liftover.
+
+# **TOPMed Imputation Pre-QC**
+
+## 1. Run code to prepare initial input:
+
+**Version that was initially run on all chromosomes:**
+
+```{zsh engine.opts='-i', eval = F}
+mamba activate bcftools-vcftools-osx64-crossmap
+code_dir="code/topmed_imputation"
+
+bash "$code_dir"/create_initial_input.sh \
+  raw/genetics/CG10k_NHW_hg19_Oct2017/CG10k_NHW_hg19_Oct2017 \
+  data/genetics/tm_imp/pre_qc \
+  "$code_dir" \
+  "all" \
+  "no"
+
+```
+
+Original SNP nr:   630805 raw/genetics/CG10k_NHW_hg19_Oct2017/CG10k_NHW_hg19_Oct2017.bim
+Crossovered SNP nr:   630534 data/genetics/tm_imp/pre_qc/tmp_gwas.bim
+Non-ambiguous SNP nr:   628526 data/genetics/tm_imp/pre_qc/tmp_gwas_no_AT_CG.bim
+Final SNP nr after QC:   627400 data/genetics/tm_imp/pre_qc/pre_qc.bim
+
+## 2. Upload to TOPMed for QC only
+
+TOPMed R3 panel.
+
+See logs in genetics/tm_imp/pre_qc folder.
+
+## 3. Run code to fix strands after pre-imputation QC:
+
+
+```{zsh engine.opts='-i', eval = F}
+mamba activate bcftools-vcftools-osx64
+code_dir="code/topmed_imputation"
+
+bash "$code_dir"/fix_strands.sh \
+  data/genetics/tm_imp/pre_qc \
+  data/genetics/tm_imp/post_qc \
+  "$code_dir" \
+  "all"
+
+```
+
+
+## 4. Upload to TOPMed for QC & Imputation
+
++ All QC logs and reports saved in genetics/tm_imp/post_qc
++ Imputation results saved in genetics/tm_imp/imputed
+
+## 5. Download & Unzip Results
+
+*To note: deleted the .zip file after got the .dose.vcf.gz & .info.gz files.*
+
+```{zsh, eval = F}
+code_dir="code/topmed_imputation"
+zip_pw="6f9hW@YAIqek1G"
+
+bash "$code_dir"/unzip_results.sh \
+  /Users/slacksa/temp_data/metaboxcan/imputed \
+  "$zip_pw"
+
+```
+
+## 6. Filter Results
+
+Based on Erika's these document, looks like an MAF of 0.01 was used. Can't see
+that an imputation Rsq filter was used (think maybe because she got imputed
+data directly from the COPDGene site?), but going to use our typical 0.3 here
+anyway.
+
+Imputation Rsq > 0.3 and no MAF filter. Updated around 06/2024 and will do this
+as standard to save to RKJCollab GitHub as PLINK2 file. Will also save a
+concatenated version of the INFO file, so can look up SNPs with Rsq < 0.3.
+
+```{zsh engine.opts='-i', eval = F}
+mamba activate bcftools-vcftools-osx64
+code_dir="code/topmed_imputation"
+
+# For each file in list, run filter_info_files.R. Arguments are chromosome,
+# then Rsq filter, then MAF filter, then working directory
+for chr in {6..21}
+do
+  bash ${code_dir}/filter_info_and_vcf_files.sh \
+    "${chr}" \
+    0.3 \
+    0.1 \
+    /Users/slacksa/temp_data/metaboxcan/imputed \
+    /Users/slacksa/temp_data/metaboxcan/imputed_clean
+done
+```
+
+Write out concatenated VCF file (temp, to be deleted once have PLINK file):
+
+```{zsh engine.opts='-i'}
+# Make file_list for input into bcftools concat
+ls /Users/slacksa/temp_data/metaboxcan/imputed_clean/*_clean.vcf.gz | sort -V > \
+  /Users/slacksa/temp_data/metaboxcan/imputed_clean/imputed_clean_file_list.txt
+
+```
+
+```{zsh engine.opts='-i'}
+mamba activate bcftools-osx64
+
+# Concatenate VCFs
+bcftools concat \
+  --file-list /Users/slacksa/temp_data/metaboxcan/imputed_clean/imputed_clean_file_list.txt \
+  --output-type z \
+  --output /Users/slacksa/temp_data/metaboxcan/imputed_clean/chr_all_concat.vcf.gz
+
+```
+
+Convert to PLINK2:
+
+*To note: this is fileset will move to OneDrive at:*
+
+Maternal_Protection/data/genetics/teddy/tm_imp/imputed_clean_maf0_rsq0.3/dosage/chr_all_concat
+Maternal_Protection/data/genetics/teddy/tm_imp/imputed_clean_maf0_rsq0.3/gt/chr_all_concat
+
+```{zsh}
+plink2 --vcf /Users/slacksa/temp_data/metaboxcan/imputed_clean/chr_all_concat.vcf.gz \
+  --make-pgen --set-all-var-ids @:#:\$r:\$a --new-id-max-allele-len 1000 \
+  --out /Users/slacksa/temp_data/metaboxcan/imputed_clean/chr_all_concat
+
+```
+
+Also, concatenate INFO files so maintain whole list of SNPs imputed:
+
+Did not concatenate - R was not able to do it locally, so instead just keeping
+individual files.
+
+*To note: these files will move to OneDrive at*
+*Maternal_Protection/data/genetics/teddy/tm_imp/imputed_info*
+
+```{r}
+# file_list <- list.files(
+#   "/Users/slacksa/temp_data/maternal_protection/teddy_tm_imp/imputed",
+#   pattern = "^chr.+.info.gz$", full.names = T)
+# chr_vals <- as.numeric(gsub("chr(\\d+).*", "\\1", basename(file_list)))
+# 
+# # Order the filenames based on the numeric values
+# ordered_file_list <- file_list[order(chr_vals)]
+# 
+# info_all <- read_delim(ordered_file_list,
+#                        comment = "##",
+#                        col_types = c("ccccccccccccc"))
+# 
+# write_delim(info_all,
+#           file = gzfile("/Users/slacksa/temp_data/maternal_protection/teddy_tm_imp/imputed/chr_all_concat.info.gz"))
+
+```
+
+# **Session Info**
+
+R Session info:
+
+```{r session_info}
+sessionInfo()
+```
