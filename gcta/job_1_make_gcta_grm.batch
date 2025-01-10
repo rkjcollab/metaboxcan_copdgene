@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --partition=amilan
+#SBATCH --ntasks=12
+#SBATCH --job-name="make_gcta_grm"  # used as part of output name
+#SBATCH -o "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/job_1_%x.out"
+#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/job_1_%x.err"
+#SBATCH --account=amc-general
+#SBATCH --time=1:00:00
+#SBATCH --mem=4G
+
+plink_input="/scratch/alpine/sslack@xsede.org/metaboxcan/genetics/CG10k_NHW_hg19_Oct2017"
+gcta_dir="/scratch/alpine/sslack@xsede.org/metaboxcan/gcta"
+maf_filter=0.05
+grm_filter=0.05
+
+bash 1_make_gcta_grm.sh \
+    "$plink_input" "$gcta_dir" "$maf_filter" "$grm_filter"
