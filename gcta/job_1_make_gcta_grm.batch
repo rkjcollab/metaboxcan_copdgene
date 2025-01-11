@@ -10,7 +10,7 @@
 #SBATCH --time=1:00:00
 #SBATCH --mem=4G
 
-plink_input="/scratch/alpine/sslack@xsede.org/metaboxcan/genetics/CG10k_NHW_hg19_Oct2017"
+plink_input="/scratch/alpine/sslack@xsede.org/metaboxcan/genetics/CG10k_NHW_hg19_Oct2017_filt"
 gcta_dir="/scratch/alpine/sslack@xsede.org/metaboxcan/gcta"
 maf_filter=0.05
 grm_filter=0.05
