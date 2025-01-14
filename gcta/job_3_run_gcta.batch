@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --partition=amilan
+#SBATCH --ntasks=12
+#SBATCH --job-name="constrain_no_covar"  # used as folder name for output
+#SBATCH -o "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_run_gcta.out"
+#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_run_gcta.err"
+#SBATCH --account=amc-general
+#SBATCH --time=00:30:00
+
+cd /scratch/alpine/sslack@xsede.org/metaboxcan
+
+# TO NOTE: only path to metabolite pheno set here, all others need to be set
+# in bash script 3_run_gcta.sh.
+comb_metab_file="metab/COPDGene_P2_LT20miss_knnImp_NoOut_metabs_20211021.csv"
+indv_metab_dir="gcta/metab_phen"
+
+module load gnu_parallel
+module load R/4.4.0
+
+# Run script to split metabolite data into individual metabolite pheno files
+Rscript /projects/sslack@xsede.org/repos/metaboxcan_copdgene/gcta/3_split_pheno.R \
+    "$comb_metab_file" "$indv_metab_dir"
+
+# Run GCTA
+metabs=($(ls "$indv_metab_dir"))
+
+parallel -j "$SLURM_NTASKS" \
+    bash /projects/sslack@xsede.org/repos/metaboxcan_copdgene/gcta/3_run_gcta.sh ::: "${metabs[@]}"
