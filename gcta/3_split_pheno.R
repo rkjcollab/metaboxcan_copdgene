@@ -44,8 +44,6 @@ phen_names <- metab %>%
   select(-FID, -IID) %>%
   colnames(.)
 
-phen_names <- phen_names[1:100]  # TEMP short test
-
 # Make pheno file for each metab name
 foreach(x = phen_names, .packages = c("dplyr"), .verbose = T) %dopar% {
   # Get one metab name at a time
@@ -56,7 +54,7 @@ foreach(x = phen_names, .packages = c("dplyr"), .verbose = T) %dopar% {
   write.table(
     phen_indv,
     file = output_file,
-    sep = " ", row.names = F, col.names = F
+    sep = " ", row.names = F, col.names = F, quote = F
   )
 }
 

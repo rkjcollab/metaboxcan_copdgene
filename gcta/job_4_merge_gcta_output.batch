@@ -5,14 +5,14 @@
 #SBATCH --ntasks=12
 #SBATCH --job-name="constrain_no_covar"  # used as folder name for output
 #SBATCH -o "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/merge_%x/job_4_merge_gcta_output.out"
-#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_4_merge_gcta_output.err"
+#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/merge_%x/job_4_merge_gcta_output.err"
 #SBATCH --account=amc-general
 #SBATCH --time=00:30:00
 
 # TO NOTE: set path to individual GCTA output and path/name for merged output.
 cd /scratch/alpine/sslack@xsede.org/metaboxcan
 indv_gcta="gcta/${SLURM_JOB_NAME}"
-merge_gcta="gcta/merge_${SLURM_JOB_NAME}
+merge_gcta="gcta/merge_${SLURM_JOB_NAME}"
 
 module load mambaforge
 mamba activate r-tidyverse-doParallel-foreach

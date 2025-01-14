@@ -12,8 +12,7 @@ fi
 
 metab_path="gcta/metab_phen"
 grm="gcta/grm/CG10k_NHW_hg19_Oct2017_filt_maf0.05_grm0.05"
-out_dir="$SLURM_JOB_NAME"
-mkdir "$out_dir"
+out_dir="gcta/${SLURM_JOB_NAME}"
 
 m_name=$(basename "$1" .phen)
 

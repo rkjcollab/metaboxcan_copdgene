@@ -2,29 +2,30 @@
 
 #SBATCH --nodes=1
 #SBATCH --partition=amilan
-#SBATCH --ntasks=12
+#SBATCH --ntasks=32
 #SBATCH --job-name="constrain_no_covar"  # used as folder name for output
-#SBATCH -o "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_run_gcta.out"
-#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_run_gcta.err"
+#SBATCH -o "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_3_run_gcta.out"
+#SBATCH -e "/scratch/alpine/sslack@xsede.org/metaboxcan/gcta/%x/job_3_run_gcta.err"
 #SBATCH --account=amc-general
-#SBATCH --time=00:30:00
-
-cd /scratch/alpine/sslack@xsede.org/metaboxcan
+#SBATCH --time=12:00:00
 
 # TO NOTE: only path to metabolite pheno set here, all others need to be set
 # in bash script 3_run_gcta.sh.
+cd /scratch/alpine/sslack@xsede.org/metaboxcan
 comb_metab_file="metab/COPDGene_P2_LT20miss_knnImp_NoOut_metabs_20211021.csv"
 indv_metab_dir="gcta/metab_phen"
 
-module load gnu_parallel
-module load R/4.4.0
+module load mambaforge
+mamba activate r-tidyverse-doParallel-foreach
 
 # Run script to split metabolite data into individual metabolite pheno files
 Rscript /projects/sslack@xsede.org/repos/metaboxcan_copdgene/gcta/3_split_pheno.R \
     "$comb_metab_file" "$indv_metab_dir"
 
 # Run GCTA
+module load gnu_parallel
 metabs=($(ls "$indv_metab_dir"))
+mkdir "gcta/${SLURM_JOB_NAME}"  # needs to match out_dir in 3_run_gcta.sh
 
 parallel -j "$SLURM_NTASKS" \
     bash /projects/sslack@xsede.org/repos/metaboxcan_copdgene/gcta/3_run_gcta.sh ::: "${metabs[@]}"
