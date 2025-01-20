@@ -159,32 +159,6 @@ plink2 --vcf /Users/slacksa/temp_data/metaboxcan/imputed_clean/chr_all_concat.vc
 
 ```
 
-Also, concatenate INFO files so maintain whole list of SNPs imputed:
-
-Did not concatenate - R was not able to do it locally, so instead just keeping
-individual files.
-
-*To note: these files will move to OneDrive at*
-*Maternal_Protection/data/genetics/teddy/tm_imp/imputed_info*
-
-```{r}
-# file_list <- list.files(
-#   "/Users/slacksa/temp_data/maternal_protection/teddy_tm_imp/imputed",
-#   pattern = "^chr.+.info.gz$", full.names = T)
-# chr_vals <- as.numeric(gsub("chr(\\d+).*", "\\1", basename(file_list)))
-# 
-# # Order the filenames based on the numeric values
-# ordered_file_list <- file_list[order(chr_vals)]
-# 
-# info_all <- read_delim(ordered_file_list,
-#                        comment = "##",
-#                        col_types = c("ccccccccccccc"))
-# 
-# write_delim(info_all,
-#           file = gzfile("/Users/slacksa/temp_data/maternal_protection/teddy_tm_imp/imputed/chr_all_concat.info.gz"))
-
-```
-
 # **Session Info**
 
 R Session info:
