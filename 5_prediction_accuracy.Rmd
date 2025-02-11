@@ -25,6 +25,34 @@ library(purrr)
 library(ggpubr)
 ```
 
+```{r, include = F}
+# # TODO: remove when don't need!
+# 
+# grm <- read.delim("/Users/slacksa/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Collabs/metaboxcan/data/gcta/CG10k_NHW_hg19_Oct2017_filt_maf0.05_grm.grm.bin")
+# 
+# # R script to read the GRM binary file
+# ReadGRMBin=function(prefix, AllN=F, size=4){
+#     sum_i=function(i){
+#       return(sum(1:i))
+#     }
+#     BinFileName=paste(prefix,".grm.bin",sep="")
+#     NFileName=paste(prefix,".grm.N.bin",sep="")
+#     IDFileName=paste(prefix,".grm.id",sep="")
+#     id = read.table(IDFileName)
+#     n=dim(id)[1]
+#     BinFile=file(BinFileName, "rb");
+#      grm=readBin(BinFile, n=n*(n+1)/2, what=numeric(0), size=size)
+#     NFile=file(NFileName, "rb");
+#     if(AllN==T){
+#       N=readBin(NFile, n=n*(n+1)/2, what=numeric(0), size=size)
+#     }
+#     else N=readBin(NFile, n=1, what=numeric(0), size=size)
+#     i=sapply(1:n, sum_i)
+#     return(list(diag=grm[i], off=grm[-i], id=id, N=N))
+# }
+# 
+# grm <- ReadGRMBin("/Users/slacksa/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Collabs/metaboxcan/data/gcta/CG10k_NHW_hg19_Oct2017_filt_maf0.05_grm")
+```
 
 # **METSIM Db Prediction Accuracy in COPDGene**
 
@@ -36,7 +64,19 @@ of COPDGene). Prediction accuracy was also calculated separately by sex, which
 was requested since METSIM is only male (TODO: confirm?). There are 489 males
 and 468 females.
 
-Two-sided Pearson correlation prediction accuracy was calculated in
+First, residuals of metabolite values were calculated in 3 different ways in
+script 4.1_get_metab_residuals.R:
+
+  + 1. age and sex (most closely matches paper draft)
+  + 2. age, sex, race, smoking status, pack years, BMI, and FEV1pp (suggested
+      by Katerina)
+
+Subset to the 957 individuals that calculating accuracy in before running
+model to get residuals here. To do this and keep all covars for option 2,
+reduce to 953 individuals. Will run option 1 with all 957 and with 953 to
+be comparable. Results for unadjusted metabolite values also shown.
+
+Then, two-sided Pearson correlation prediction accuracy was calculated in
 4_calc_prediction_accuracy.R, and details for the steps before that are
 available in each script.
 
@@ -44,6 +84,9 @@ In part, Pearson correlation was chosen based on the Predixcan paper by Gamazon
 et al (PMID 6258848). From the methods:
 "To assess performance, we used the square of the Pearson correlation, R2,
 between predicted and observed expression levels."
+
+Spearman correlation was also calculated, but with many warnings due to shared
+ties.
 
 # **Load Data**
 
@@ -53,19 +96,85 @@ between predicted and observed expression levels."
 pred <- read.delim(
   "data/metsim_prediction/filt/COPDGene_metsim_metaboxcan_predict.txt")
 
+
+### Unadjusted
 # Accuracy
-acc <- read_tsv(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance.txt")
+acc_no_adj <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance.txt"))
 
-acc_m <- read_tsv(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_males.txt")
+acc_no_adj_m <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_males.txt"))
 
-acc_f <- read_tsv(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_females.txt")
+acc_no_adj_f <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_females.txt"))
 
 # Predicted vs. observed
-merge <- read_tsv(
-  file="data/metsim_prediction/filt/pred_v_obs_metsim.txt")
+merge_no_adj <- read_tsv(paste0(
+  file="data/metsim_prediction/filt/COPDGene_pred_v_obs_metsim.txt"))
+
+# Metab value
+metab_no_adj <- read_csv(
+  "raw/metab/COPDGene_P2_LT20miss_knnImp_NoOut_metabs_20211021.csv")
+
+### Simple covar 1 - all individuals
+# Accuracy
+version <- "age_sex_covar_adj"
+acc_c1 <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+
+acc_c1_m <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+
+acc_c1_f <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+
+# Predicted vs. observed
+merge_c1 <- read_tsv(paste0(
+  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+
+# Metab value
+metab_c1 <- read_tsv(paste0(
+  "data/metab/COPDGene_P2_metabs_", version, "_resid.txt"))
+
+### Simple covar 1 - subset of individuals
+# Accuracy
+version <- "age_sex_covar_subset_adj"
+acc_c1_sub <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+
+acc_c1_sub_m <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+
+acc_c1_sub_f <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+
+# Predicted vs. observed
+merge_c1_sub <- read_tsv(paste0(
+  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+
+# Metab value
+metab_c1_sub <- read_tsv(paste0(
+  "data/metab/COPDGene_P2_metabs_", version, "_resid.txt"))
+
+### Full covar 2 - subset of individuals
+# Accuracy
+version <- "full_covar_subset_adj"
+acc_c2 <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+
+acc_c2_m <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+
+acc_c2_f <- read_tsv(paste0(
+  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+
+# Predicted vs. observed
+merge_c2 <- read_tsv(paste0(
+  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+
+# Metab value
+metab_c2 <- read_tsv(paste0(
+  "data/metab/COPDGene_P2_metabs_", version, "_resid.txt"))
 
 # Metsim db
 db <- dbConnect(
@@ -80,29 +189,35 @@ pheno <- read_tsv(
 # TO NOTE: this throws warnings, but doesn't affect the column I need (gender)
 # 1 = male, 2 = female
 
+# Heritability
+herit <- read_csv("data/gcta/merge_constrain_no_covar.csv")
+
+# For mapping of metab_id to CHEM_ID
+metab_info <- read_csv(
+  "raw/metab/COPDGene_P2_MetaboliteInformation_20211021.csv")
+# Mapping:
+# metabolite data (including herit data): metab_id --> CHEM_ID
+# predicted expression: remove C from IDs, match to CHEM_ID
+
+
 ```
 
-# **Study Information**
 
-This section only looks at the subset of individuals we're analyzing accuracy
-in, those with COPDGene metabolomics and genetics data. All NHW.
-
-```{r}
-pheno_filt <- pheno %>%
-  dplyr::mutate(IID = paste0(sid, "_", sid)) %>%
-  dplyr::filter(IID %in% pred$IID)
-
-table(pheno_filt$cohort, useNA = "ifany")
-table(pheno_filt$gender, useNA = "ifany")
-table(pheno_filt$race, useNA = "ifany")
-table(pheno_filt$COPD_P1, useNA = "ifany")  # have you ever had COPD, 3 = don't know
-table(pheno_filt$CopdDxByDr_P1, useNA = "ifany")  # diagnosed COPD
-```
 
 
 # **Prediction Accuracy Overview**
 
+### No Residuals
+
 **Distribution of Pearson accuracy (R squared, also shown as R2):**
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_no_adj
+acc_f <- acc_no_adj_f
+acc_m <- acc_no_adj_m
+merge <- merge_no_adj
+```
 
 ```{r, out.width = '50%', fig.show = 'hold', message = F}
 ggplot(acc, aes(x = pearson.r2)) +
@@ -158,7 +273,227 @@ sum(acc$pearson.pval < 0.05)
 ```
 
 
+### Residuals, Simple Covar, All 957
+
+**Distribution of Pearson accuracy (R squared, also shown as R2):**
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c1
+acc_f <- acc_c1_f
+acc_m <- acc_c1_m
+merge <- merge_c1
+```
+
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+ggplot(acc, aes(x = pearson.r2)) +
+  geom_histogram() + 
+  labs(title = "Pearson R2")
+
+ggplot(acc, aes(x = log(pearson.r2))) +
+  geom_histogram() + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+**Distribution of Pearson R2 (not transformed):**
+
+```{r}
+print(paste0("Min: ", min(acc$pearson.r2, na.rm = T)))
+print(paste0("Max: ", max(acc$pearson.r2, na.rm = T)))
+quantile(acc$pearson.r2, na.rm = T)
+```
+
+
+**Distribution of Pearson accuracy stratified by sex:**
+
+Correlation here was calculated separately in males and females.
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+acc_m$sex = "male"
+acc_f$sex = "female"
+acc_sex <- rbind(acc_m, acc_f)
+
+
+ggplot(acc_sex, aes(x = pearson.r2, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Pearson R2")
+
+ggplot(acc_sex, aes(x = log(pearson.r2), fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+
+**How many with Pearson R2 > 0.1?**
+
+```{r}
+sum(acc$pearson.r2 > 0.1)
+```
+
+**How many significantly correlated (Pearson p-value < 0.05)?**
+
+```{r}
+sum(acc$pearson.pval < 0.05)
+```
+
+
+
+### Residuals, Simple Covar, Subset 953
+
+**Distribution of Pearson accuracy (R squared, also shown as R2):**
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c1_sub
+acc_f <- acc_c1_sub_f
+acc_m <- acc_c1_sub_m
+merge <- merge_c1_sub
+```
+
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+ggplot(acc, aes(x = pearson.r2)) +
+  geom_histogram() + 
+  labs(title = "Pearson R2")
+
+ggplot(acc, aes(x = log(pearson.r2))) +
+  geom_histogram() + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+**Distribution of Pearson R2 (not transformed):**
+
+```{r}
+print(paste0("Min: ", min(acc$pearson.r2, na.rm = T)))
+print(paste0("Max: ", max(acc$pearson.r2, na.rm = T)))
+quantile(acc$pearson.r2, na.rm = T)
+```
+
+
+**Distribution of Pearson accuracy stratified by sex:**
+
+Correlation here was calculated separately in males and females.
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+acc_m$sex = "male"
+acc_f$sex = "female"
+acc_sex <- rbind(acc_m, acc_f)
+
+
+ggplot(acc_sex, aes(x = pearson.r2, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Pearson R2")
+
+ggplot(acc_sex, aes(x = log(pearson.r2), fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+
+**How many with Pearson R2 > 0.1?**
+
+```{r}
+sum(acc$pearson.r2 > 0.1)
+```
+
+**How many significantly correlated (Pearson p-value < 0.05)?**
+
+```{r}
+sum(acc$pearson.pval < 0.05)
+```
+
+
+
+
+
+### Residuals, Full Covar, Subset 953
+
+**Distribution of Pearson accuracy (R squared, also shown as R2):**
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c2
+acc_f <- acc_c2_f
+acc_m <- acc_c2_m
+merge <- merge_c2
+```
+
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+ggplot(acc, aes(x = pearson.r2)) +
+  geom_histogram() + 
+  labs(title = "Pearson R2")
+
+ggplot(acc, aes(x = log(pearson.r2))) +
+  geom_histogram() + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+**Distribution of Pearson R2 (not transformed):**
+
+```{r}
+print(paste0("Min: ", min(acc$pearson.r2, na.rm = T)))
+print(paste0("Max: ", max(acc$pearson.r2, na.rm = T)))
+quantile(acc$pearson.r2, na.rm = T)
+```
+
+
+**Distribution of Pearson accuracy stratified by sex:**
+
+Correlation here was calculated separately in males and females.
+
+```{r, out.width = '50%', fig.show = 'hold', message = F}
+acc_m$sex = "male"
+acc_f$sex = "female"
+acc_sex <- rbind(acc_m, acc_f)
+
+
+ggplot(acc_sex, aes(x = pearson.r2, fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Pearson R2")
+
+ggplot(acc_sex, aes(x = log(pearson.r2), fill = sex)) +
+  geom_histogram(position = "identity", alpha = 0.5) + 
+  labs(title = "Log Transform of Pearson R2")
+
+```
+
+
+**How many with Pearson R2 > 0.1?**
+
+```{r}
+sum(acc$pearson.r2 > 0.1)
+```
+
+**How many significantly correlated (Pearson p-value < 0.05)?**
+
+```{r}
+sum(acc$pearson.pval < 0.05)
+```
+
+
+
+
+
+
+
 # **Prediction Accuracy Scatter Plots**
+
+### No Residuals
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_no_adj
+acc_f <- acc_no_adj_f
+acc_m <- acc_no_adj_m
+merge <- merge_no_adj
+```
 
 **All metabolites, prediction accuracy R2 vs. METSIM model R2:**
 
@@ -303,6 +638,570 @@ invisible(lapply(acc_merge_show_top$metab, function(m) {
 
 *TO NOTE: actual p-values are shown in table above, not sure why plot rounding*
 *is cuttting all off at 2.2E-16.*
+
+
+
+### Residuals, Simple Covar, All 957
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c1
+acc_f <- acc_c1_f
+acc_m <- acc_c1_m
+merge <- merge_c1
+```
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2:**
+
+```{r}
+# identical(db_ext$gene, db_ext$genename)  # TRUE
+db_ext_mod <- db_ext %>%
+  dplyr::mutate(metab = gsub("^C", "", gene))
+acc_merge <- inner_join(
+  acc %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+# sum(is.na(acc_merge$pearson.r2))  # 0
+# acc_merge_mod <- acc_merge %>%
+#   dplyr::mutate(pearson.r2 = ifelse(is.na(pearson.r2), -0.1, pearson.r2))
+
+plot_acc <- ggplot(acc_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+plot_acc
+
+```
+
+*TO NOTE: Not sure why some of their model performance R2 values are negative?*
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2, stratified by sex:**
+
+Correlation here was calculated separately in males and females. Combined plot
+has two points for each metabolite - one showing the correlation calculated in
+males and the other in females. The plots are also shown separated.
+
+```{r}
+acc_sex_merge <- inner_join(
+  acc_sex %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+ggplot(acc_sex_merge, aes(x = pred.perf.R2, y = pearson.r2, color = sex)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+```
+
+
+```{r out.width = '50%', fig.show = 'hold'}
+acc_m_merge <- inner_join(
+  acc_m %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+acc_f_merge <- inner_join(
+  acc_f %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+default_colors <- scales::hue_pal()(2)
+
+ggplot(acc_m_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[2]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Males") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+ggplot(acc_f_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[1]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Females") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+```
+
+
+**List metabolites with the highest prediction accuracy:**
+
+```{r}
+acc_merge_show <- acc_merge %>%
+  dplyr::select(
+    metab, pearson.cor, pearson.r2, t.stat, pearson.pval, pred.perf.R2,
+    n.snps.in.model) %>%
+  dplyr::arrange(desc(pearson.r2))
+
+# switch p-value column to character for display in report
+head(
+  acc_merge_show %>% dplyr::mutate(pearson.pval = as.character(pearson.pval)), 10)
+
+acc_merge_show_top <- acc_merge_show %>%
+  slice(1:4)
+
+```
+
+
+### Residuals, Simple Covar, Subset 953
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c1_sub
+acc_f <- acc_c1_sub_f
+acc_m <- acc_c1_sub_m
+merge <- merge_c1_sub
+```
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2:**
+
+```{r}
+# identical(db_ext$gene, db_ext$genename)  # TRUE
+db_ext_mod <- db_ext %>%
+  dplyr::mutate(metab = gsub("^C", "", gene))
+acc_merge <- inner_join(
+  acc %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+# sum(is.na(acc_merge$pearson.r2))  # 0
+# acc_merge_mod <- acc_merge %>%
+#   dplyr::mutate(pearson.r2 = ifelse(is.na(pearson.r2), -0.1, pearson.r2))
+
+plot_acc <- ggplot(acc_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+plot_acc
+
+```
+
+*TO NOTE: Not sure why some of their model performance R2 values are negative?*
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2, stratified by sex:**
+
+Correlation here was calculated separately in males and females. Combined plot
+has two points for each metabolite - one showing the correlation calculated in
+males and the other in females. The plots are also shown separated.
+
+```{r}
+acc_sex_merge <- inner_join(
+  acc_sex %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+ggplot(acc_sex_merge, aes(x = pred.perf.R2, y = pearson.r2, color = sex)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+```
+
+
+```{r out.width = '50%', fig.show = 'hold'}
+acc_m_merge <- inner_join(
+  acc_m %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+acc_f_merge <- inner_join(
+  acc_f %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+default_colors <- scales::hue_pal()(2)
+
+ggplot(acc_m_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[2]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Males") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+ggplot(acc_f_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[1]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Females") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+```
+
+
+**List metabolites with the highest prediction accuracy:**
+
+```{r}
+acc_merge_show <- acc_merge %>%
+  dplyr::select(
+    metab, pearson.cor, pearson.r2, t.stat, pearson.pval, pred.perf.R2,
+    n.snps.in.model) %>%
+  dplyr::arrange(desc(pearson.r2))
+
+# switch p-value column to character for display in report
+head(
+  acc_merge_show %>% dplyr::mutate(pearson.pval = as.character(pearson.pval)), 10)
+
+acc_merge_show_top <- acc_merge_show %>%
+  slice(1:4)
+
+```
+
+
+### Residuals, Full Covar, Subset 953
+
+```{r}
+# TO NOTE: udpate df "acc" for each section
+acc <- acc_c2
+acc_f <- acc_c2_f
+acc_m <- acc_c2_m
+merge <- merge_c2
+```
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2:**
+
+```{r}
+# identical(db_ext$gene, db_ext$genename)  # TRUE
+db_ext_mod <- db_ext %>%
+  dplyr::mutate(metab = gsub("^C", "", gene))
+acc_merge <- inner_join(
+  acc %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+# sum(is.na(acc_merge$pearson.r2))  # 0
+# acc_merge_mod <- acc_merge %>%
+#   dplyr::mutate(pearson.r2 = ifelse(is.na(pearson.r2), -0.1, pearson.r2))
+
+plot_acc <- ggplot(acc_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+plot_acc
+
+```
+
+*TO NOTE: Not sure why some of their model performance R2 values are negative?*
+
+**All metabolites, prediction accuracy R2 vs. METSIM model R2, stratified by sex:**
+
+Correlation here was calculated separately in males and females. Combined plot
+has two points for each metabolite - one showing the correlation calculated in
+males and the other in females. The plots are also shown separated.
+
+```{r}
+acc_sex_merge <- inner_join(
+  acc_sex %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+ggplot(acc_sex_merge, aes(x = pred.perf.R2, y = pearson.r2, color = sex)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2))) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+```
+
+
+```{r out.width = '50%', fig.show = 'hold'}
+acc_m_merge <- inner_join(
+  acc_m %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+acc_f_merge <- inner_join(
+  acc_f %>% dplyr::mutate(metab = as.character(metab)),
+  db_ext_mod,
+  by = c("metab"))
+
+default_colors <- scales::hue_pal()(2)
+
+ggplot(acc_m_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[2]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Males") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+
+ggplot(acc_f_merge, aes(x = pred.perf.R2, y = pearson.r2)) +
+  geom_point(alpha = 0.5, color = default_colors[1]) +
+  coord_fixed() +
+  labs(
+    x = bquote("Model Performance"~(R^2)),
+    y = bquote("Prediction Accuracy"~(R^2)),
+    title = "Females") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min(acc_merge$pred.perf.R2),1)) +
+  theme_minimal()
+```
+
+
+**List metabolites with the highest prediction accuracy:**
+
+```{r}
+acc_merge_show <- acc_merge %>%
+  dplyr::select(
+    metab, pearson.cor, pearson.r2, t.stat, pearson.pval, pred.perf.R2,
+    n.snps.in.model) %>%
+  dplyr::arrange(desc(pearson.r2))
+
+# switch p-value column to character for display in report
+head(
+  acc_merge_show %>% dplyr::mutate(pearson.pval = as.character(pearson.pval)), 10)
+
+acc_merge_show_top <- acc_merge_show %>%
+  slice(1:4)
+
+```
+
+
+
+### Compare Accuracy Across Versions
+
+```{r}
+# For some reason pivot_wider not working (duplicated values), so instead
+# combining by making new columns
+acc_c1_comb <- acc_c1 %>%
+  dplyr::mutate(covar_short = pearson.r2) %>%
+  dplyr::select(metab, covar_short)
+acc_c1_sub_comb <- acc_c1_sub %>%
+  dplyr::mutate(covar_short_subset = pearson.r2) %>%
+  dplyr::select(metab, covar_short_subset)
+acc_c2_comb <- acc_c2 %>%
+  dplyr::mutate(covar_full = pearson.r2) %>%
+  dplyr::select(metab, covar_full)
+acc_no_adj_comb <- acc_no_adj %>%
+  dplyr::mutate(unadj = pearson.r2) %>%
+  dplyr::select(metab, unadj)
+
+acc_comb_t1 <- inner_join(acc_c1_comb, acc_c1_sub_comb, by = c("metab"))
+acc_comb_t2 <- inner_join(acc_c2_comb, acc_no_adj_comb, by = c("metab"))
+acc_comb <- inner_join(acc_comb_t1, acc_comb_t2, by = c("metab"))
+
+```
+
+**Each version vs. unadjusted:**
+
+```{r }
+ggplot(acc_comb, aes(x = unadj, y = covar_short)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(title = "Pearson R2") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(acc_comb, aes(x = unadj, y = covar_short_subset)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(title = "Pearson R2") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(acc_comb, aes(x = unadj, y = covar_full)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(title = "Pearson R2") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+
+```
+
+**Residual versions with each other:**
+
+```{r}
+ggplot(acc_comb, aes(x = covar_short, y = covar_short_subset)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(title = "Pearson R2") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(acc_comb, aes(x = covar_short, y = covar_full)) +
+  geom_point(alpha = 0.5) +
+  coord_fixed() +
+  labs(title = "Pearson R2") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(0,1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+
+All are VERY similar!
+
+# **For Publication**
+
+Matching draft paper supplemental figure 2 - box plots of R and scatter plot
+of performance in females vs. males. Using Pearson correlation.
+
+For now, doing with each of the residual versions since all very similar.
+
+```{r}
+plot_pub <- function(data_f, data_m, title) {
+  data_f$sex <- "Female"
+  data_m$sex <- "Male"
+  data_lg <- rbind(data_f, data_m)
+  
+  data_wd <- inner_join(
+    data_f %>% dplyr::select(metab, pearson.cor),
+    data_m %>% dplyr::select(metab, pearson.cor),
+    by = c("metab"), suffix = c("_f", "_m"))
+  
+  # coord_fixed ratio is y/x
+  ratio <- 2 / (range(data_lg$pearson.cor)[2] - range(data_lg$pearson.cor)[1])
+  boxplot <- ggplot(data_lg, aes(x = sex, y = pearson.cor)) +
+    coord_fixed(ratio) +
+    geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+    stat_compare_means(method = "t.test", label = "p.format",
+                       label.x = 1.5, label.y = 0.65, hjust = 0.6) +
+    labs(x = "Sex",
+         y = "Pearson Correlation") +
+    theme_bw()
+  boxplot
+  
+  min_r <- min(data_lg$pearson.cor)
+  max_r <- max(data_lg$pearson.cor)
+  scatter <- ggplot(data_wd, aes(x = pearson.cor_m, y = pearson.cor_f)) +
+    geom_point(alpha = 0.5) +
+    coord_fixed() +
+    labs(
+      x = "Males",
+      y = "Females") +
+    scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min_r, max_r)) +
+    scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min_r, max_r)) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    stat_cor(method = "pearson", label.x = 0.35, label.y = 0.65, hjust = 0.5)
+  
+  plot <- ggarrange(
+    boxplot, scatter, nrow = 1, ncol = 2, align = "hv")
+  plot <- annotate_figure(
+    plot, fig.lab = title, fig.lab.pos = "top.left", fig.lab.face = "bold")
+  
+  return(plot)
+  
+}
+```
+
+```{r}
+plot_pub(acc_c1_f, acc_c1_m, "1. Covar Only Age and Sex, All 957")
+plot_pub(acc_c1_sub_f, acc_c1_sub_m, "2. Covar Full, Subset 953")
+plot_pub(acc_c2_f, acc_c2_m, "3. Covar Only Age and Sex, Subset 953")
+```
+
+
+# **Heritability Results - Unadjusted Only**
+
+Currently, heritability was calculated for the observed/actual metabolomics
+data (not predicted) in unrelateds (N=953, 4 removed) based on the
+GCTA-calculated GRM and a cutoff of 0.05. Constrained REML analysis was then
+run in GCTA without any covariates.
+
+*TODO: update this once talk with Haky about methods used in paper.*
+
+**Distribution of heritability:**
+
+```{r}
+ggplot(herit, aes(`V(G)/Vp`)) +
+  geom_histogram(alpha = 0.5) +
+  ggtitle("Heritability") +
+  xlim(-0.1, 1)
+```
+
+**Distribution of p-value vs. heritability:**
+
+Line shown at a p-value of 0.05.
+
+```{r}
+ggplot(herit, aes(x=`V(G)/Vp`, y=-log10(Pval))) +
+  geom_point(alpha = 0.5) +
+  ggtitle("Pval vs. Heritability") +
+  xlim(-0.1,1) +
+  ylim(-1,10) +
+  geom_hline(yintercept = -log10(0.05))
+```
+
+
+**How many with Pvalue < 0.05?**
+
+```{r}
+sum(herit$Pval < 0.05)
+```
+
+**How many with heritability > 0.5?**
+
+```{r}
+sum(herit$`V(G)/Vp` > 0.5)
+```
+
+**How many Pvalue < 0.05 and heritability > 0.5?**
+
+```{r}
+herit_sig <- herit %>% dplyr::filter(Pval < 0.05)
+sum(herit_sig$`V(G)/Vp` > 0.5)
+```
+
+
+
 
 # **Session Info**
 
