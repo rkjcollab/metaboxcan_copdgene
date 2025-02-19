@@ -4,8 +4,9 @@
 
 # Running with two different sets of covariates:
   # 1. age and sex (most closely matches paper draft)
-  # 2. age, sex, race, smoking status, pack years, BMI, and FEV1pp (suggested
+  # 2. age, sex, smoking status, pack years, BMI, and FEV1pp (suggested
     # by Katerina)
+    # TO NOTE: do not need to adjust for race because already subset to NHW
 
 # Subset to the 957 individuals that calculating accuracy in before running
 # model to get residuals here. To do this and keep all covars for option 2,
@@ -45,14 +46,13 @@ gene.exp <- read.csv(omic_file) %>%
   column_to_rownames("sid")
 
 covar.data <- read_tsv(covariates_file) %>%
-  dplyr::select(sid, Age_P2, gender, race, smoking_status_P2, ATS_PackYears_P2,
+  dplyr::select(sid, Age_P2, gender, smoking_status_P2, ATS_PackYears_P2,
                 BMI_P2, Pred_FEV1_P2) %>%
   column_to_rownames("sid")
 # TO NOTE: this throws warnings, but doesn't affect the columns I need
     # _P2 indicates phase 2 visit, which is visit with metabolomics
   # Age = Age_P2, age at phase 2 visit?
   # Sex = gender, 1= male, 2 = female
-  # Race = race
   # Smoking status = smoking_status_P2
   # Pack years = ATS_PackYears_P2
   # BMI = BMI_P2
@@ -67,7 +67,6 @@ gene.exp.filt <- gene.exp %>%
 sum(is.na(covar.data.filt))  # 13
 sum(is.na(covar.data.filt$Age_P2))  # 0
 sum(is.na(covar.data.filt$gender))  # 0
-sum(is.na(covar.data.filt$race))  # 0
 sum(is.na(covar.data.filt$smoking_status_P2))  # 3
 sum(is.na(covar.data.filt$ATS_PackYears_P2))  # 4
 sum(is.na(covar.data.filt$BMI_P2))  # 3, TODO: could calculate?
@@ -78,10 +77,10 @@ covar.check <- covar.data.filt %>%
 # All NAs are for same 4 people
 
 # Run option 1
-# output_prefix <- "data/metab/COPDGene_P2_metabs_age_sex_covar"
-# covar.data.filt <- covar.data.filt %>%
-#   dplyr::select(Age_P2, gender)
-# sum(is.na(covar.data.filt))  # 0
+output_prefix <- "data/metab/COPDGene_P2_metabs_age_sex_covar"
+covar.data.filt <- covar.data.filt %>%
+  dplyr::select(Age_P2, gender)
+sum(is.na(covar.data.filt))  # 0
 
 # Run option 1, subset to individuals for option 2
 # output_prefix <- "data/metab/COPDGene_P2_metabs_age_sex_covar_subset"
@@ -90,10 +89,10 @@ covar.check <- covar.data.filt %>%
 #   dplyr::select(Age_P2, gender)
 
 # Run option 2
-output_prefix <- "data/metab/COPDGene_P2_metabs_full_covar_subset"
-covar.data.filt <- na.omit(covar.data.filt)  # 953
-gene.exp.filt <- gene.exp.filt %>%
-  dplyr::filter(rownames(.) %in% rownames(covar.data.filt))
+# output_prefix <- "data/metab/COPDGene_P2_metabs_full_covar_subset"
+# covar.data.filt <- na.omit(covar.data.filt)  # 953
+# gene.exp.filt <- gene.exp.filt %>%
+#   dplyr::filter(rownames(.) %in% rownames(covar.data.filt))
 
 # Order omics and covariates
 gene.exp.filt <- gene.exp.filt[rownames(covar.data.filt), ]

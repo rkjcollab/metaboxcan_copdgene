@@ -25,35 +25,6 @@ library(purrr)
 library(ggpubr)
 ```
 
-```{r, include = F}
-# # TODO: remove when don't need!
-# 
-# grm <- read.delim("/Users/slacksa/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Collabs/metaboxcan/data/gcta/CG10k_NHW_hg19_Oct2017_filt_maf0.05_grm.grm.bin")
-# 
-# # R script to read the GRM binary file
-# ReadGRMBin=function(prefix, AllN=F, size=4){
-#     sum_i=function(i){
-#       return(sum(1:i))
-#     }
-#     BinFileName=paste(prefix,".grm.bin",sep="")
-#     NFileName=paste(prefix,".grm.N.bin",sep="")
-#     IDFileName=paste(prefix,".grm.id",sep="")
-#     id = read.table(IDFileName)
-#     n=dim(id)[1]
-#     BinFile=file(BinFileName, "rb");
-#      grm=readBin(BinFile, n=n*(n+1)/2, what=numeric(0), size=size)
-#     NFile=file(NFileName, "rb");
-#     if(AllN==T){
-#       N=readBin(NFile, n=n*(n+1)/2, what=numeric(0), size=size)
-#     }
-#     else N=readBin(NFile, n=1, what=numeric(0), size=size)
-#     i=sapply(1:n, sum_i)
-#     return(list(diag=grm[i], off=grm[-i], id=id, N=N))
-# }
-# 
-# grm <- ReadGRMBin("/Users/slacksa/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Collabs/metaboxcan/data/gcta/CG10k_NHW_hg19_Oct2017_filt_maf0.05_grm")
-```
-
 # **METSIM Db Prediction Accuracy in COPDGene**
 
 Prediction accuracy analysis for Haky and Festus using their METSIM metabolite
@@ -68,8 +39,9 @@ First, residuals of metabolite values were calculated in 3 different ways in
 script 4.1_get_metab_residuals.R:
 
   + 1. age and sex (most closely matches paper draft)
-  + 2. age, sex, race, smoking status, pack years, BMI, and FEV1pp (suggested
+  + 2. age, sex, smoking status, pack years, BMI, and FEV1pp (suggested
       by Katerina)
+      + TO NOTE: don't need to adjust for race since subset to NHW
 
 Subset to the 957 individuals that calculating accuracy in before running
 model to get residuals here. To do this and keep all covars for option 2,
@@ -201,8 +173,6 @@ metab_info <- read_csv(
 
 
 ```
-
-
 
 
 # **Prediction Accuracy Overview**
@@ -1144,9 +1114,14 @@ plot_pub <- function(data_f, data_m, title) {
 
 ```{r}
 plot_pub(acc_c1_f, acc_c1_m, "1. Covar Only Age and Sex, All 957")
-plot_pub(acc_c1_sub_f, acc_c1_sub_m, "2. Covar Full, Subset 953")
-plot_pub(acc_c2_f, acc_c2_m, "3. Covar Only Age and Sex, Subset 953")
+plot_pub(acc_c2_f, acc_c2_m, "2. Covar Full, Subset 953")
+plot_pub(acc_c1_sub_f, acc_c1_sub_m, "3. Covar Only Age and Sex, Subset 953")
 ```
+
+**Decision:** for publication, use the full covariate version in 953
+individuals, think best to adjsut for all covariates suggested by Katerina
+since COPDGene is a unique cohort. Written out for publication at end.
+
 
 
 # **Heritability Results - Unadjusted Only**
@@ -1201,6 +1176,17 @@ sum(herit_sig$`V(G)/Vp` > 0.5)
 ```
 
 
+
+
+
+# **Write Out**
+
+```{r}
+pub <- plot_pub(acc_c2_f, acc_c2_m, "")
+
+ggsave("dissemination/copdgene_metaboxcan_plot_for_pub.png", pub,
+       units = "in", width = 6, height = 3.5)
+```
 
 
 # **Session Info**

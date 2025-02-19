@@ -7,7 +7,7 @@
 
 # Running with two different sets of covariates:
   # 1. age and sex (most closely matches paper draft)
-  # 2. age, sex, race, smoking status, pack years, BMI, and FEV1pp (suggested
+  # 2. age, sex, smoking status, pack years, BMI, and FEV1pp (suggested
     # by Katerina)
 
 # Subset to the 957 individuals that calculating accuracy in before running
@@ -32,9 +32,9 @@ pred_gex <- read_delim(
 # output_prefix <- ""
 
 # Covar option 1
-# metab <- read_tsv(
-#   "data/metab/COPDGene_P2_metabs_age_sex_covar_adj_resid.txt")
-# output_prefix <- "age_sex_covar_adj_"
+metab <- read_tsv(
+  "data/metab/COPDGene_P2_metabs_age_sex_covar_adj_resid.txt")
+output_prefix <- "age_sex_covar_adj_"
 
 # Covar option 1, subset to same individuals as option 2
 # metab <- read_tsv(
@@ -42,9 +42,9 @@ pred_gex <- read_delim(
 # output_prefix <- "age_sex_covar_subset_adj_"
 
 # Covar option 2
-metab <- read_tsv(
-  "data/metab/COPDGene_P2_metabs_full_covar_subset_adj_resid.txt")
-output_prefix <- "full_covar_subset_adj_"
+# metab <- read_tsv(
+#   "data/metab/COPDGene_P2_metabs_full_covar_subset_adj_resid.txt")
+# output_prefix <- "full_covar_subset_adj_"
 
 
 metab_info <- read_csv(
