@@ -1061,7 +1061,9 @@ All are VERY similar!
 # **For Publication**
 
 Matching draft paper supplemental figure 2 - box plots of R and scatter plot
-of performance in females vs. males. Using Pearson correlation.
+of performance in females vs. males.
+
+### **Pearson**
 
 For now, doing with each of the residual versions since all very similar.
 
@@ -1118,10 +1120,63 @@ plot_pub(acc_c2_f, acc_c2_m, "2. Covar Full, Subset 953")
 plot_pub(acc_c1_sub_f, acc_c1_sub_m, "3. Covar Only Age and Sex, Subset 953")
 ```
 
+
 **Decision:** for publication, use the full covariate version in 953
 individuals, think best to adjsut for all covariates suggested by Katerina
 since COPDGene is a unique cohort. Written out for publication at end.
 
+### **Spearman**
+
+```{r}
+plot_pub_spearman <- function(data_f, data_m, title) {
+  data_f$sex <- "Female"
+  data_m$sex <- "Male"
+  data_lg <- rbind(data_f, data_m)
+  
+  data_wd <- inner_join(
+    data_f %>% dplyr::select(metab, spearman.cor),
+    data_m %>% dplyr::select(metab, spearman.cor),
+    by = c("metab"), suffix = c("_f", "_m"))
+  
+  # coord_fixed ratio is y/x
+  ratio <- 2 / (range(data_lg$spearman.cor)[2] - range(data_lg$spearman.cor)[1])
+  boxplot <- ggplot(data_lg, aes(x = sex, y = spearman.cor)) +
+    coord_fixed(ratio) +
+    geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+    stat_compare_means(method = "t.test", label = "p.format",
+                       label.x = 1.5, label.y = 0.65, hjust = 0.6) +
+    labs(x = "Sex",
+         y = "Spearman Correlation") +
+    theme_bw()
+  boxplot
+  
+  min_r <- min(data_lg$spearman.cor)
+  max_r <- max(data_lg$spearman.cor)
+  scatter <- ggplot(data_wd, aes(x = spearman.cor_m, y = spearman.cor_f)) +
+    geom_point(alpha = 0.5) +
+    coord_fixed() +
+    labs(
+      x = "Males",
+      y = "Females") +
+    scale_x_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min_r, max_r)) +
+    scale_y_continuous(breaks = seq(0, 1, by = 0.3), limits = c(min_r, max_r)) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    stat_cor(method = "spearman", label.x = 0.35, label.y = 0.65, hjust = 0.5)
+  
+  plot <- ggarrange(
+    boxplot, scatter, nrow = 1, ncol = 2, align = "hv")
+  plot <- annotate_figure(
+    plot, fig.lab = title, fig.lab.pos = "top.left", fig.lab.face = "bold")
+  
+  return(plot)
+  
+}
+```
+
+```{r}
+plot_pub_spearman(acc_c2_f, acc_c2_m, "2. Covar Full, Subset 953")
+```
 
 
 # **Heritability Results - Unadjusted Only**
@@ -1185,6 +1240,11 @@ sum(herit_sig$`V(G)/Vp` > 0.5)
 pub <- plot_pub(acc_c2_f, acc_c2_m, "")
 
 ggsave("dissemination/copdgene_metaboxcan_plot_for_pub.png", pub,
+       units = "in", width = 6, height = 3.5)
+
+pub_spearman <- plot_pub_spearman(acc_c2_f, acc_c2_m, "")
+
+ggsave("dissemination/copdgene_metaboxcan_plot_for_pub_spearman.png", pub_spearman,
        units = "in", width = 6, height = 3.5)
 ```
 
