@@ -73,3 +73,16 @@ db_ids_mod_no_match <- as.data.frame(db_ids_mod) %>%
 
 # Doesn't appear to be because the format between the metab_id and CHEM_ID
 # changes, likely just because these aren't present in the dbs
+
+# Make ID map
+db_wt_mod <- db_wt %>%
+  dplyr::select(gene) %>%
+  dplyr::filter(!duplicated(gene)) %>%
+  dplyr::mutate(gene_mod = gsub("^C", "", gene))
+map <- inner_join(
+  metab_info_filt %>% dplyr::mutate(CHEM_ID = as.character(CHEM_ID)),
+  db_wt_mod,
+  by = c("CHEM_ID" = "gene_mod"))
+
+write_tsv(
+  map, "data/metab/metab_db_id_map.txt")
