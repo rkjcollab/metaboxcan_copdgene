@@ -23,6 +23,7 @@ library(RSQLite)
 library(data.table)
 library(purrr)
 library(ggpubr)
+library(table1)
 ```
 
 # **METSIM Db Prediction Accuracy in COPDGene**
@@ -66,23 +67,22 @@ ties.
 
 # Predicted Gene Expression
 pred <- read.delim(
-  "data/metsim_prediction/filt/COPDGene_metsim_metaboxcan_predict.txt")
-
+  "data/metsim_prediction/COPDGene_metaboxcan_predict.txt")
 
 ### Unadjusted
 # Accuracy
 acc_no_adj <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance.txt"))
+  "data/metsim_prediction/COPDGene_metsim_prediction_performance.txt"))
 
 acc_no_adj_m <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_males.txt"))
+  "data/metsim_prediction/COPDGene_metsim_prediction_performance_males.txt"))
 
 acc_no_adj_f <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_metsim_prediction_performance_females.txt"))
+  "data/metsim_prediction/COPDGene_metsim_prediction_performance_females.txt"))
 
 # Predicted vs. observed
 merge_no_adj <- read_tsv(paste0(
-  file="data/metsim_prediction/filt/COPDGene_pred_v_obs_metsim.txt"))
+  file="data/metsim_prediction/COPDGene_pred_v_obs_metsim.txt"))
 
 # Metab value
 metab_no_adj <- read_csv(
@@ -92,17 +92,17 @@ metab_no_adj <- read_csv(
 # Accuracy
 version <- "age_sex_covar_adj"
 acc_c1 <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance.txt"))
 
 acc_c1_m <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
 
 acc_c1_f <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
 
 # Predicted vs. observed
 merge_c1 <- read_tsv(paste0(
-  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+  file="data/metsim_prediction/COPDGene_", version, "_pred_v_obs_metsim.txt"))
 
 # Metab value
 metab_c1 <- read_tsv(paste0(
@@ -112,17 +112,17 @@ metab_c1 <- read_tsv(paste0(
 # Accuracy
 version <- "age_sex_covar_subset_adj"
 acc_c1_sub <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance.txt"))
 
 acc_c1_sub_m <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
 
 acc_c1_sub_f <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
 
 # Predicted vs. observed
 merge_c1_sub <- read_tsv(paste0(
-  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+  file="data/metsim_prediction/COPDGene_", version, "_pred_v_obs_metsim.txt"))
 
 # Metab value
 metab_c1_sub <- read_tsv(paste0(
@@ -132,17 +132,17 @@ metab_c1_sub <- read_tsv(paste0(
 # Accuracy
 version <- "full_covar_subset_adj"
 acc_c2 <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance.txt"))
 
 acc_c2_m <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_males.txt"))
 
 acc_c2_f <- read_tsv(paste0(
-  "data/metsim_prediction/filt/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
+  "data/metsim_prediction/COPDGene_", version, "_metsim_prediction_performance_females.txt"))
 
 # Predicted vs. observed
 merge_c2 <- read_tsv(paste0(
-  file="data/metsim_prediction/filt/COPDGene_", version, "_pred_v_obs_metsim.txt"))
+  file="data/metsim_prediction/COPDGene_", version, "_pred_v_obs_metsim.txt"))
 
 # Metab value
 metab_c2 <- read_tsv(paste0(
@@ -1062,6 +1062,25 @@ All are VERY similar!
 
 Matching draft paper supplemental figure 2 - box plots of R and scatter plot
 of performance in females vs. males.
+
+### **Table 1**
+
+For the 953 individuals with full covariate adjustment.
+
+Smoking status = 0=Never-smoked | 1=Former smoker | 2=Current smoker
+
+```{r}
+c2_ids <- unique(merge_c2$ID)
+pheno_c2 <- pheno %>%
+  dplyr::filter(sid %in% c2_ids)
+
+table1( ~ Age_P2 + as.factor(race) + as.factor(smoking_status_P2) +
+          ATS_PackYears_P2 + BMI_P2 + Pred_FEV1_P2 | as.factor(gender),
+        data = pheno_c2)
+
+table1( ~ as.factor(gender) | as.factor(race), data = pheno_c2)
+```
+
 
 ### **Pearson**
 

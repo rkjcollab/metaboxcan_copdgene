@@ -24,17 +24,18 @@ library(data.table)
 library(conflicted)
 
 pred_gex <- read_delim(
-  "data/metsim_prediction/filt/COPDGene_metsim_metaboxcan_predict.txt")
+  "data/metsim_prediction/COPDGene_metaboxcan_predict.txt")
 
 # Unadjusted
-# metab <- read_csv(
-#   "raw/metab/COPDGene_P2_LT20miss_knnImp_NoOut_metabs_20211021.csv")
-# output_prefix <- ""
+metab <- read_csv(
+  "raw/metab/COPDGene_P2_LT20miss_knnImp_NoOut_metabs_20211021.csv")
+output_prefix <- ""
 
+# Adjusted
 # Covar option 1
-metab <- read_tsv(
-  "data/metab/COPDGene_P2_metabs_age_sex_covar_adj_resid.txt")
-output_prefix <- "age_sex_covar_adj_"
+# metab <- read_tsv(
+#   "data/metab/COPDGene_P2_metabs_age_sex_covar_adj_resid.txt")
+# output_prefix <- "age_sex_covar_adj_"
 
 # Covar option 1, subset to same individuals as option 2
 # metab <- read_tsv(
@@ -45,7 +46,6 @@ output_prefix <- "age_sex_covar_adj_"
 # metab <- read_tsv(
 #   "data/metab/COPDGene_P2_metabs_full_covar_subset_adj_resid.txt")
 # output_prefix <- "full_covar_subset_adj_"
-
 
 metab_info <- read_csv(
   "raw/metab/COPDGene_P2_MetaboliteInformation_20211021.csv")
@@ -180,13 +180,13 @@ result_f <- get_pred_vs_obs(merge_mod_f, metabs)
 # Write out --------------------------------------------------------------------
 
 write_tsv(merge, paste0(
-  "data/metsim_prediction/filt/COPDGene_", output_prefix, "pred_v_obs_metsim.txt"))
+  "data/metsim_prediction/COPDGene_", output_prefix, "pred_v_obs_metsim.txt"))
 
 write_tsv(result, paste0(
-  "data/metsim_prediction/filt/COPDGene_", output_prefix, "metsim_prediction_performance.txt"))
+  "data/metsim_prediction/COPDGene_", output_prefix, "metsim_prediction_performance.txt"))
 
 write_tsv(result_m, paste0(
-  "data/metsim_prediction/filt/COPDGene_", output_prefix, "metsim_prediction_performance_males.txt"))
+  "data/metsim_prediction/COPDGene_", output_prefix, "metsim_prediction_performance_males.txt"))
 
 write_tsv(result_f, paste0(
-  "data/metsim_prediction/filt/COPDGene_", output_prefix, "metsim_prediction_performance_females.txt"))
+  "data/metsim_prediction/COPDGene_", output_prefix, "metsim_prediction_performance_females.txt"))
